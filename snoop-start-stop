@@ -1,0 +1,20 @@
+#! /bin/sh
+
+# Start/stop the snoop program as a daemon
+process_name=snoop
+
+case "$1" in
+    start)
+        echo "Starting $process_name"
+        start-stop-daemon -S -n $process_name -a /usr/bin/snoop
+        ;;
+    stop)
+        echo "Stopping $process_name"
+        start-stop-daemon -K -n $process_name
+        ;;
+    *)
+        echo "Usage: $0 {start|stop}"
+    exit 1
+esac
+
+exit 0
