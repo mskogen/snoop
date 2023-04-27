@@ -5,7 +5,7 @@ LDFLAGS ?= -lpthread -lrt
 
 # Project specific flags
 TARGET ?= snoop
-SOURCES = snoop.c
+SOURCES = snoop.c src/*.c
 INCLUDES = -I. -Iinclude
 
 all:

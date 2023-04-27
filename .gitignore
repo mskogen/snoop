@@ -1,3 +1,5 @@
 .vscode
 *.o
 snoop
+main.c
+test_video

@@ -21,17 +21,20 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <syslog.h>
 #include <time.h>
 #include <signal.h>
 
-#include "http_client.h"
+// #include "http_client.h"
 
 #define LOG_FILE_BASE   ("snoop_log")
 #define MAX_PATH_SIZE   (256)
 #define MAX_LINE_SIZE   (2048)
+#define MAX_FILE_NAME   (64)
+#define MAX_CMD_LENGTH  (1024)
 
 // Global variables
 bool exit_status = false;
@@ -111,11 +114,20 @@ void cleanup(bool terminate)
 int main(int argc, char**argv)
 {
     // Verify proper number of arguments passed in
-    if (argc != 2) {
+    if (argc != 4) {
         printf("ERROR: Invalid number of arguments %i\n", argc);
-        printf("Usage: ./snoop /path/to/storage/drive\n");
+        printf("Usage: ./snoop /path/to/storage/drive [http_ip] [http_port]\n");
         return EXIT_FAILURE;
     }
+
+    char filePath[MAX_PATH_SIZE];
+    char fileName[MAX_FILE_NAME];
+    char command[MAX_CMD_LENGTH];
+    char *base_dir = argv[1];
+    char *host = argv[2];
+    char *port = argv[3];
+    int base_dir_len = strlen(base_dir);
+    int num_images = 0;
 
     // Open connection to system logger with default LOG_USER facility
     openlog("snoop", LOG_CONS, LOG_USER);
@@ -169,7 +181,7 @@ int main(int argc, char**argv)
     // First argument is a path to directory on filesystem
     char write_file[MAX_PATH_SIZE];
     snprintf(write_file, sizeof(write_file), "%s/%s_%s", 
-                argv[1], LOG_FILE_BASE, time_buffer);
+                base_dir, LOG_FILE_BASE, time_buffer);
 
     /* 
      * Open a connection to the file, create new file if it doesn't exist and
@@ -202,96 +214,27 @@ int main(int argc, char**argv)
         syslog(LOG_DEBUG, "Successfully wrote full string to file.\n");
     }
 
-    // struct sockaddr_in addr, cl_addr;  
-    // int sockfd, ret; 
-    // struct hostent * server;
-    // char * url, * temp;
-    // int portNumber;
-    // char * fileName;
-    // char status_ok[] = "OK";
-    // char buffer[BUF_SIZE]; 
-    // char http_not_found[] = "HTTP/1.0 404 Not Found";
-    // char http_ok[] = "HTTP/1.0 200 OK";
-    // char location[] = "Location: ";
-    // char contentType[] = "Content-Type: ";
-    // int sPos, ePos;
+    for (int i = 0; i < 100; i++) {
+        memset(filePath, 0, sizeof(filePath));
+        memset(fileName, 0, sizeof(fileName));
+        memset(command, 0, sizeof(command));
 
-    // if (argc < 3) {
-    //     printf("usage: [URL] [port number]\n");
-    //     exit(1);  
-    // }
+        sprintf(filePath, "%s/", base_dir);
+        sprintf(fileName, "test_image_%i.jpg", num_images++);
+        memcpy(&filePath[base_dir_len+1], fileName, strlen(fileName));
 
-    // url = argv[1];
-    // portNumber = atoi(argv[2]);
+        // printf("saving image to file [%s]\n", filePath);
 
-    // //checking the protocol specified
-    // if ((temp = strstr(url, "http://")) != NULL) {
-    //     url = url + 7;
-    // } else if ((temp = strstr(url, "https://")) != NULL) {
-    //     url = url + 8;
-    // }
+        sprintf(command, "curl -s http://%s:%s/capture > %s", host, port, filePath);
 
-    // //checking the port number
-    // if (portNumber > 65536 || portNumber < 0) {
-    //     printf("Invalid Port Number!");
-    //     exit(1);
-    // }
+        // printf("Sending command [%s]\n", command);
 
-    // sockfd = get_request(url, argv[2]); 
+        system(command);
 
-    // memset(&buffer, 0, sizeof(buffer));
-    // ret = recv(sockfd, buffer, BUF_SIZE, 0);  
-    // if (ret < 0) {  
-    //     printf("Error receiving HTTP status!\n");    
-    // } else {
-    //     printf("%s\n", buffer);
-    //     if ((temp = strstr(buffer, http_ok)) != NULL) {
-    //         send(sockfd, status_ok, strlen(status_ok), 0);
-    //     } else {
-    //         close(sockfd);
-    //         return 0;
-    //     }
-    // }
+        usleep(33333);
+    }
 
-    // memset(&buffer, 0, sizeof(buffer)); 
-    // ret = recv(sockfd, buffer, BUF_SIZE, 0);  
-    // if (ret < 0) {  
-    //     printf("Error receiving HTTP header!\n");    
-    // } else {
-    //     printf("%s\n", buffer);
-    //     if (parseHeader(buffer) == 0) {
-    //         send(sockfd, status_ok, strlen(status_ok), 0);
-    //     } else {
-    //         printf("Error in HTTP header!\n");
-    //         close(sockfd);
-    //         return 0;
-    //     }
-    // } 
-
-    // //printf("file: [%s]\n", fileName);
-    // fileptr = fopen(path, "w");
-    // if (fileptr == NULL) {
-    //     printf("Error opening file!\n");
-    //     close(sockfd);
-    //     return 0;
-    // }
-
-    // memset(&buffer, 0, sizeof(buffer));
-    // while (recv(sockfd, buffer, BUF_SIZE, 0) > 0) { //receives the file
-    //     if ((strstr(contentFileType, "text/html")) != NULL) {
-    //         fprintf(fileptr, "%s", buffer);
-    //     } else {
-    //         fwrite(&buffer, sizeof(buffer), 1, fileptr);
-    //     }
-    //     memset(&buffer, 0, sizeof(buffer));
-    // }
-
-    // fclose(fileptr);
-    // close(sockfd);
-
-    // openFile();
-
-    sleep(60);
+    fprintf(logfile, "Wrote %i images to %s\n", num_images, base_dir);
     
     // Zero out our buffers
     memset(time_buffer, 0, sizeof(time_buffer));

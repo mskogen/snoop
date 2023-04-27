@@ -7,7 +7,7 @@ drive_folder="/video_drive"
 case "$1" in
     start)
         echo "Starting $process_name"
-        if [[ -f "${drive_folder}" ]];
+        if [[ -d $drive_folder ]];
         then
             start-stop-daemon -S -n $process_name -a /usr/bin/snoop -- $drive_folder
         fi
