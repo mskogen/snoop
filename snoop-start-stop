@@ -2,11 +2,15 @@
 
 # Start/stop the snoop program as a daemon
 process_name=snoop
+drive_folder="/video_drive"
 
 case "$1" in
     start)
         echo "Starting $process_name"
-        start-stop-daemon -S -n $process_name -a /usr/bin/snoop
+        if [[ -f "${drive_folder}" ]];
+        then
+            start-stop-daemon -S -n $process_name -a /usr/bin/snoop -- $drive_folder
+        fi
         ;;
     stop)
         echo "Stopping $process_name"
