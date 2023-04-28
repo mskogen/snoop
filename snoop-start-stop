@@ -3,13 +3,15 @@
 # Start/stop the snoop program as a daemon
 process_name=snoop
 drive_folder="/video_drive"
+http_ip=192.168.0.137
+http_port=80
 
 case "$1" in
     start)
         echo "Starting $process_name"
         if [[ -d $drive_folder ]];
         then
-            start-stop-daemon -S -n $process_name -a /usr/bin/snoop -- $drive_folder
+            start-stop-daemon -S -n $process_name -a /usr/bin/snoop -- $drive_folder $http_ip $http_port
         fi
         ;;
     stop)

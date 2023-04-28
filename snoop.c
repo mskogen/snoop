@@ -25,22 +25,15 @@
 #include <string.h>
 #include <errno.h>
 #include <syslog.h>
-#include <time.h>
 #include <signal.h>
 
-// #include "http_client.h"
+#include "logging.h"
 
-#define LOG_FILE_BASE   ("snoop_log")
-#define MAX_PATH_SIZE   (256)
-#define MAX_LINE_SIZE   (2048)
-#define MAX_FILE_NAME   (64)
 #define MAX_CMD_LENGTH  (1024)
 
 // Global variables
 bool exit_status = false;
 bool syslog_open = false;
-bool logfile_open = false;
-FILE *logfile = NULL;
 // pthread_mutex_t thread_mutex;
 // bool mutex_active = false;
 
@@ -76,28 +69,6 @@ void cleanup(bool terminate)
         //     timer_active = false;
         // }
 
-        // if (mutex_active) {
-        //     status = pthread_mutex_destroy(&thread_mutex);
-        //     if (status != 0) {
-        //         syslog(LOG_ERR, "Error pthread_mutex_destroy(): %s\n", strerror(status));
-        //     }
-        //     mutex_active = false;
-        // }
-
-        // if (tmp_file_exists) {
-        //     status = remove(TMP_FILE);
-        //     if (status != 0) {
-        //         syslog(LOG_ERR, "Error remove(): %s\n", strerror(errno));
-        //     }
-        //     tmp_file_exists = false;
-        // }
-
-        // Close out connection to the file descriptor if file was opened
-        if (logfile_open) {
-            fclose(logfile);
-            logfile_open = false;
-        }
-
         // Close out connection to system logger
         if (syslog_open) {
             closelog();
@@ -123,6 +94,7 @@ int main(int argc, char**argv)
     char filePath[MAX_PATH_SIZE];
     char fileName[MAX_FILE_NAME];
     char command[MAX_CMD_LENGTH];
+    char write_str[LINE_BUF_SIZE];
     char *base_dir = argv[1];
     char *host = argv[2];
     char *port = argv[3];
@@ -163,56 +135,14 @@ int main(int argc, char**argv)
         return EXIT_FAILURE;
     }
 
-    // Objects for timestamping application start
-    time_t timestamp;
-    struct tm *info;
-    char time_buffer[80];
-    char write_str[MAX_LINE_SIZE];
-
-    // Zero out our buffers
-    memset(time_buffer, 0, sizeof(time_buffer));
-    memset(write_str, 0, sizeof(write_str));
-
-    // Create timestamp for application start, use UTC time
-    time(&timestamp);
-    info = gmtime(&timestamp);
-    strftime(time_buffer, sizeof(time_buffer), "%m%d%Y_%H%M%S", info);
-
-    // First argument is a path to directory on filesystem
-    char write_file[MAX_PATH_SIZE];
-    snprintf(write_file, sizeof(write_file), "%s/%s_%s", 
-                base_dir, LOG_FILE_BASE, time_buffer);
-
-    /* 
-     * Open a connection to the file, create new file if it doesn't exist and
-     * overwrite file if it does exist.
-     */
-    int ret_val = 0;
-    logfile = fopen(write_file, "w");
-
-    if (logfile == NULL) {
-        syslog(LOG_ERR, "Failed to open %s: %m\n", write_file);
+    // Create a new logfile instance
+    if (new_logfile(base_dir) == EXIT_FAILURE) {
+        syslog(LOG_ERR, "Failed to open new logfile.\n");
         cleanup(true);
         return EXIT_FAILURE;
-    } else {
-        logfile_open = true;
     }
 
-    // File opened succesfully, write to file
-    snprintf(write_str, sizeof(write_str), "%s - %s\n", 
-                "Starting Snoop", time_buffer);
-    ret_val = fprintf(logfile, "%s", write_str);
-
-    if (ret_val < 0) {
-        // Error writing to file, check errno
-        syslog(LOG_ERR, "Failed to write to file: %m\n");
-    } else if (ret_val != strlen(write_str)) {
-        // Failed to write all bytes to file
-        syslog(LOG_WARNING, "Only wrote %i bytes to file\n", ret_val);
-    } else {
-        // Successful write
-        syslog(LOG_DEBUG, "Successfully wrote full string to file.\n");
-    }
+    write_logfile("Starting Snoop");
 
     for (int i = 0; i < 100; i++) {
         memset(filePath, 0, sizeof(filePath));
@@ -234,35 +164,15 @@ int main(int argc, char**argv)
         usleep(33333);
     }
 
-    fprintf(logfile, "Wrote %i images to %s\n", num_images, base_dir);
-    
-    // Zero out our buffers
-    memset(time_buffer, 0, sizeof(time_buffer));
     memset(write_str, 0, sizeof(write_str));
+    sprintf(write_str, "Wrote %i images to %s", num_images, base_dir);
 
-    // Create timestamp for application end, use UTC time
-    time(&timestamp);
-    info = gmtime(&timestamp);
-    strftime(time_buffer, sizeof(time_buffer), "%m%d%Y_%H%M%S", info);
-
-    // Write to file
-    snprintf(write_str, sizeof(write_str), "%s - %s\n", 
-                "Closing Snoop", time_buffer);
-    ret_val = fprintf(logfile, "%s", write_str);
-
-    if (ret_val < 0) {
-        // Error writing to file, check errno
-        syslog(LOG_ERR, "Failed to write to file: %m\n");
-    } else if (ret_val != strlen(write_str)) {
-        // Failed to write all bytes to file
-        syslog(LOG_WARNING, "Only wrote %i bytes to file\n", ret_val);
-    } else {
-        // Successful write
-        syslog(LOG_DEBUG, "Successfully wrote full string to file.\n");
-    }
+    write_logfile(write_str);
 
     // Cleanup any opened resources
     cleanup(true);
+
+    write_logfile("Closing Snoop");
 
     return EXIT_SUCCESS;
 }

@@ -2,4 +2,4 @@
 *.o
 snoop
 main.c
-test_video
+test_dir
