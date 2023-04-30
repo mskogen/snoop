@@ -217,16 +217,15 @@ int main(int argc, char**argv)
 
         // Convert minute's worth of images to video data and delete image data
         num_videos = convert_to_video();
-        exit_status = true;
     }
-
-    memset(write_str, 0, sizeof(write_str));
-    sprintf(write_str, "Saved %i images %i videos", num_images, num_videos);
-
-    write_logfile(write_str);
 
     // Cleanup any opened resources
     cleanup(true);
+
+    // Write status of captured data
+    memset(write_str, 0, sizeof(write_str));
+    sprintf(write_str, "Saved %i images %i videos", num_images, num_videos);
+    write_logfile(write_str);
 
     write_logfile("Closing Snoop");
 

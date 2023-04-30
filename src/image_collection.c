@@ -124,7 +124,8 @@ int convert_to_video()
     // memcpy(&g_file_path[g_base_dir_len], file_name, strlen(file_name));
 
     // Capture image from http image server
-    sprintf(command, "ffmpeg -framerate %i -r %i -pattern_type glob -i \"%s/*.jpg\" -c:v libx264 %s/%s", 
+    sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
+        -pattern_type glob -i \"%s/*.jpg\" -c:v libx264 %s/%s", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
 
     system(command);
