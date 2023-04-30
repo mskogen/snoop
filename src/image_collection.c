@@ -83,7 +83,6 @@ int capture_image()
 
 int convert_to_video()
 {
-    write_logfile("convert_to_video - entered function");
     // Convert .jpg to .mp4 via ffmpeg utility
     char file_name[MAX_FILE_NAME];
     char command[MAX_CMD_LENGTH];
@@ -100,31 +99,20 @@ int convert_to_video()
     char time_buffer[TIME_BUF_SIZE];
     int time_buf_len = 0;
 
-    write_logfile("convert_to_video - fetching time");
-
     memset(time_buffer, 0, TIME_BUF_SIZE);
-    write_logfile("convert_to_video - time()");
     time(&timestamp);
-    write_logfile("convert_to_video - gmtime()");
     info = gmtime(&timestamp);
-    write_logfile("convert_to_video - strftime()");
     strftime(time_buffer, TIME_BUF_SIZE-1, "%m%d%Y_%H%M%S", info);
     time_buf_len = strlen(time_buffer);
 
-    write_logfile("convert_to_video - Fetched time");
-
     // Create new folder for storing images
     pthread_mutex_lock(&g_lock);
-
-    write_logfile("convert_to_video - acquired lock");
 
     // Create new data directory for storing image/video data too
     memcpy(&g_file_path[g_base_dir_len - time_buf_len], time_buffer, time_buf_len);
     mkdir(g_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
 
     pthread_mutex_unlock(&g_lock);
-
-    write_logfile("convert_to_video - released lock");
 
     // Zero memory of file name and command
     memset(file_name, 0, sizeof(file_name));
@@ -134,10 +122,8 @@ int convert_to_video()
 
     // Capture image from http image server
     sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
-        -pattern_type glob -i '\\\"%s/*.jpg\\\"' -c:v libx264 %s/%s", 
+        -pattern_type glob -i '\\\"%s/*.jpg\\\"' -c:v libx264 '\\\"%s/%s\\\"'", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
-
-    write_logfile("convert_to_video - executing ffmpeg command");
 
     system(command);
 
