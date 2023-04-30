@@ -105,14 +105,20 @@ int convert_to_video()
     strftime(time_buffer, TIME_BUF_SIZE-1, "%m%d%Y_%H%M%S", info);
     time_buf_len = strlen(time_buffer);
 
+    write_logfile("convert_to_video - Fetched time");
+
     // Create new folder for storing images
     pthread_mutex_lock(&g_lock);
+
+    write_logfile("convert_to_video - acquired lock");
 
     // Create new data directory for storing image/video data too
     memcpy(&g_file_path[g_base_dir_len - time_buf_len], time_buffer, time_buf_len);
     mkdir(g_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
 
     pthread_mutex_unlock(&g_lock);
+
+    write_logfile("convert_to_video - released lock");
 
     // Zero memory of file name and command
     memset(file_name, 0, sizeof(file_name));
@@ -124,6 +130,8 @@ int convert_to_video()
     sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
         -pattern_type glob -i \"%s/*.jpg\" -c:v libx264 %s/%s", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
+
+    write_logfile("convert_to_video - executing ffmpeg command");
 
     system(command);
 
