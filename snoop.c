@@ -52,6 +52,7 @@ static void signal_handler(int signum)
 {
     if ((signum == SIGINT) || (signum == SIGTERM)) {
         syslog(LOG_INFO, "Caught signal, exiting\n");
+        write_logfile("Caught kill signal, shutting down");
 
         // Set global to shutdown daemon when possible
         exit_status = true;
@@ -225,8 +226,10 @@ int main(int argc, char**argv)
         
         clock_gettime(CLOCK_REALTIME, &after);
         sleep_time = SECONDS_PER_VIDEO - (after.tv_sec - before.tv_sec);
-        while (sleep_time > 0) {
-            sleep_time = sleep(sleep_time);
+        if ((sleep_time > 0) && (sleep_time <= SECONDS_PER_VIDEO)) {
+            while (sleep_time > 0) {
+                sleep_time = sleep(sleep_time);
+            }
         }
     }
 
