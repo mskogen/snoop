@@ -83,6 +83,7 @@ int capture_image()
 
 int convert_to_video()
 {
+    write_logfile("convert_to_video - entered function");
     // Convert .jpg to .mp4 via ffmpeg utility
     char file_name[MAX_FILE_NAME];
     char command[MAX_CMD_LENGTH];
@@ -99,9 +100,14 @@ int convert_to_video()
     char time_buffer[TIME_BUF_SIZE];
     int time_buf_len = 0;
 
+    write_logfile("convert_to_video - fetching time");
+
     memset(time_buffer, 0, TIME_BUF_SIZE);
+    write_logfile("convert_to_video - time()");
     time(&timestamp);
+    write_logfile("convert_to_video - gmtime()");
     info = gmtime(&timestamp);
+    write_logfile("convert_to_video - strftime()");
     strftime(time_buffer, TIME_BUF_SIZE-1, "%m%d%Y_%H%M%S", info);
     time_buf_len = strlen(time_buffer);
 
