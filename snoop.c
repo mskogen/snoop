@@ -39,6 +39,7 @@
 bool exit_status = false;
 bool syslog_open = false;
 bool timer_active = false;
+bool mutex_active = false;
 timer_t timer;
 static int num_images = 0;
 static int num_videos = 0;
@@ -76,6 +77,11 @@ void cleanup(bool terminate)
                 syslog(LOG_ERR, "Error timer_delete(): %s\n", strerror(errno));
             }
             timer_active = false;
+        }
+
+        if (mutex_active) {
+            destroy_mutex();
+            mutex_active = false;
         }
 
         // Close out connection to system logger
@@ -158,7 +164,13 @@ int main(int argc, char**argv)
     write_logfile("Starting Snoop");
 
     // Setup camera sensor module
-    init_camera(base_dir, host, port);
+    if (init_camera(base_dir, host, port, CAPTURE_FREQ_HZ) == MUTEX_FAILURE) {
+        write_logfile("Failure to initialize mutex. Closing...");
+        cleanup(true);
+        return EXIT_FAILURE;
+    } else {
+        mutex_active = true;
+    }
 
     // Setup timer capture function
     struct sigevent timer_event;
