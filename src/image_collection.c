@@ -67,16 +67,15 @@ int capture_image()
     // Zero memory of file name and command
     memset(file_name, 0, sizeof(file_name));
     memset(command, 0, sizeof(command));
-    // memset(&g_file_path[g_base_dir_len], 0, MAX_PATH_SIZE-g_base_dir_len);
 
     sprintf(file_name, "image_%i.jpg", g_num_images++);
-    // memcpy(&g_file_path[g_base_dir_len], file_name, strlen(file_name));
 
     // Capture image from http image server 
     pthread_mutex_lock(&g_lock);
     sprintf(command, "curl -fs -o %s/%s http://%s:%s/capture", g_file_path, file_name, g_host, g_port);
-    system(command);
     pthread_mutex_unlock(&g_lock);
+
+    system(command);
 
     return g_num_images;
 }
@@ -90,9 +89,6 @@ int convert_to_video()
     char tmp_file_path[MAX_PATH_SIZE];
 
     memset(tmp_file_path, 0, sizeof(tmp_file_path));
-
-    // Create new folder for storing images
-    pthread_mutex_lock(&g_lock);
 
     // Save previous directory for video processing
     memcpy(tmp_file_path, g_file_path, strlen(g_file_path));
@@ -109,6 +105,9 @@ int convert_to_video()
     strftime(time_buffer, TIME_BUF_SIZE-1, "%m%d%Y_%H%M%S", info);
     time_buf_len = strlen(time_buffer);
 
+    // Create new folder for storing images
+    pthread_mutex_lock(&g_lock);
+
     // Create new data directory for storing image/video data too
     memcpy(&g_file_path[g_base_dir_len - time_buf_len], time_buffer, time_buf_len);
     mkdir(g_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -118,10 +117,8 @@ int convert_to_video()
     // Zero memory of file name and command
     memset(file_name, 0, sizeof(file_name));
     memset(command, 0, sizeof(command));
-    // memset(&g_file_path[g_base_dir_len], 0, MAX_PATH_SIZE-g_base_dir_len);
 
     sprintf(file_name, "video_%i.mp4", g_num_videos++);
-    // memcpy(&g_file_path[g_base_dir_len], file_name, strlen(file_name));
 
     // Capture image from http image server
     sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \

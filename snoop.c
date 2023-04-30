@@ -34,6 +34,7 @@
 // @15Hz intervals, create video once every minute
 #define CAPTURE_FREQ_HZ         (15)
 #define NUM_IMAGES_PER_VIDEO    (CAPTURE_FREQ_HZ*60)
+#define SECONDS_PER_VIDEO       (60)           
 
 // Global variables
 bool exit_status = false;
@@ -119,6 +120,8 @@ int main(int argc, char**argv)
     char *port = argv[3];
     int status = 0;
     int sleep_time = 0;
+    bool first = true;
+    struct timespec before, after;
 
     // Open connection to system logger with default LOG_USER facility
     openlog("snoop", LOG_CONS, LOG_USER);
@@ -210,13 +213,21 @@ int main(int argc, char**argv)
     while (!exit_status) {
         // Guarantee sleep for 60 seconds so video processing only happens
         // once per minute.
-        sleep_time = 60;
+        clock_gettime(CLOCK_REALTIME, &before);
+
+        // Convert minute's worth of images to video data and delete image data
+        if (first) {
+            first = false;
+        } else {
+            write_logfile("Processing video");
+            num_videos = convert_to_video();
+        }
+        
+        clock_gettime(CLOCK_REALTIME, &after);
+        sleep_time = SECONDS_PER_VIDEO - (after.tv_sec - before.tv_sec);
         while (sleep_time > 0) {
             sleep_time = sleep(sleep_time);
         }
-
-        // Convert minute's worth of images to video data and delete image data
-        num_videos = convert_to_video();
     }
 
     // Cleanup any opened resources
