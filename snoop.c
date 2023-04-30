@@ -26,14 +26,22 @@
 #include <errno.h>
 #include <syslog.h>
 #include <signal.h>
+#include <time.h>
 
 #include "logging.h"
+#include "image_collection.h"
 
-#define MAX_CMD_LENGTH  (1024)
+// @15Hz intervals, create video once every minute
+#define CAPTURE_FREQ_HZ         (15)
+#define NUM_IMAGES_PER_VIDEO    (CAPTURE_FREQ_HZ*60)
 
 // Global variables
 bool exit_status = false;
 bool syslog_open = false;
+bool timer_active = false;
+timer_t timer;
+static int num_images = 0;
+static int num_videos = 0;
 // pthread_mutex_t thread_mutex;
 // bool mutex_active = false;
 
@@ -56,18 +64,19 @@ static void signal_handler(int signum)
 // Cleanup connections before closing
 void cleanup(bool terminate)
 {
-    // int status = 0;
+    int status = 0;
 
     // If we are exiting after this call, close all open file descriptors
     if (terminate) {
 
-        // if (timer_active) {
-        //     status = timer_delete(timer);
-        //     if (status != 0) {
-        //         syslog(LOG_ERR, "Error timer_delete(): %s\n", strerror(errno));
-        //     }
-        //     timer_active = false;
-        // }
+        // Shutdown timer so no more images are triggered
+        if (timer_active) {
+            status = timer_delete(timer);
+            if (status != 0) {
+                syslog(LOG_ERR, "Error timer_delete(): %s\n", strerror(errno));
+            }
+            timer_active = false;
+        }
 
         // Close out connection to system logger
         if (syslog_open) {
@@ -82,6 +91,13 @@ void cleanup(bool terminate)
     return;
 }
 
+// Handler for capturing images at consistant intervals
+void timer_thread_handler(union sigval sv)
+{
+    num_images = capture_image();
+    return;
+}
+
 int main(int argc, char**argv)
 {
     // Verify proper number of arguments passed in
@@ -91,15 +107,12 @@ int main(int argc, char**argv)
         return EXIT_FAILURE;
     }
 
-    char filePath[MAX_PATH_SIZE];
-    char fileName[MAX_FILE_NAME];
-    char command[MAX_CMD_LENGTH];
     char write_str[LINE_BUF_SIZE];
     char *base_dir = argv[1];
     char *host = argv[2];
     char *port = argv[3];
-    int base_dir_len = strlen(base_dir);
-    int num_images = 0;
+    int status = 0;
+    int sleep_time = 0;
 
     // Open connection to system logger with default LOG_USER facility
     openlog("snoop", LOG_CONS, LOG_USER);
@@ -144,28 +157,59 @@ int main(int argc, char**argv)
 
     write_logfile("Starting Snoop");
 
-    for (int i = 0; i < 100; i++) {
-        memset(filePath, 0, sizeof(filePath));
-        memset(fileName, 0, sizeof(fileName));
-        memset(command, 0, sizeof(command));
+    // Setup camera sensor module
+    init_camera(base_dir, host, port);
 
-        sprintf(filePath, "%s/", base_dir);
-        sprintf(fileName, "test_image_%i.jpg", num_images++);
-        memcpy(&filePath[base_dir_len+1], fileName, strlen(fileName));
+    // Setup timer capture function
+    struct sigevent timer_event;
+    struct itimerspec itime_spec;
 
-        // printf("saving image to file [%s]\n", filePath);
+    memset(&timer_event, 0, sizeof(struct sigevent));
+    timer_event.sigev_notify = SIGEV_THREAD;
+    timer_event.sigev_notify_function = &timer_thread_handler;
 
-        sprintf(command, "curl -s http://%s:%s/capture > %s", host, port, filePath);
+    status = timer_create(CLOCK_REALTIME, &timer_event, &timer);
 
-        // printf("Sending command [%s]\n", command);
+    if (status) {
+        syslog(LOG_ERR, "Error timer_create(): %s\n", strerror(errno));
+        cleanup(true);
+        return EXIT_FAILURE;
+    } else {
+        timer_active = true;
+    }
 
-        system(command);
+    // Set time to trigger camera capture at 15 Hz or ~66,666,660 nanosecs
+    memset(&itime_spec, 0, sizeof(struct itimerspec));
+    itime_spec.it_interval.tv_sec = 0;
+    itime_spec.it_interval.tv_nsec = 66666660;
+    itime_spec.it_value.tv_sec = 0;
+    itime_spec.it_value.tv_nsec = 66666660;
 
-        usleep(33333);
+    status = timer_settime(timer, 0, &itime_spec, NULL);
+
+    if (status) {
+        syslog(LOG_ERR, "Error timer_settime(): %s\n", strerror(errno));
+        cleanup(true);
+        return EXIT_FAILURE;
+    }
+
+    // Loop forever while we capture images, occasionally create a video file
+    // to clean up existing images
+    while (!exit_status) {
+        // Guarantee sleep for 60 seconds so video processing only happens
+        // once per minute.
+        sleep_time = 60;
+        while (sleep_time > 0) {
+            sleep_time = sleep(sleep_time);
+        }
+
+        // Convert minute's worth of images to video data and delete image data
+        num_videos = convert_to_video();
+        exit_status = true;
     }
 
     memset(write_str, 0, sizeof(write_str));
-    sprintf(write_str, "Wrote %i images to %s", num_images, base_dir);
+    sprintf(write_str, "Saved %i images %i videos", num_images, num_videos);
 
     write_logfile(write_str);
 

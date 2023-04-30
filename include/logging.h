@@ -3,6 +3,7 @@
 #define MAX_PATH_SIZE   (256)
 #define MAX_FILE_NAME   (64)
 #define LINE_BUF_SIZE   (2048)
+#define TIME_BUF_SIZE   (80)
 
 int new_logfile(char *path);
 int write_logfile(char* write_str);

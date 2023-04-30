@@ -6,7 +6,6 @@
 
 #include "logging.h"
 
-#define TIME_BUF_SIZE   (80)
 #define LOG_FILE_BASE   ("snoop_log")
 
 // Want to save only one logfile at a time
