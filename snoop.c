@@ -214,7 +214,7 @@ int main(int argc, char**argv)
     while (!exit_status) {
         // Guarantee sleep for 60 seconds so video processing only happens
         // once per minute.
-        clock_gettime(CLOCK_REALTIME, &before);
+        clock_gettime(CLOCK_MONOTONIC, &before);
 
         // Convert minute's worth of images to video data and delete image data
         if (first) {
@@ -222,12 +222,14 @@ int main(int argc, char**argv)
         } else {
             write_logfile("Processing video");
             num_videos = convert_to_video();
+            write_logfile("Done processing video");
         }
         
-        clock_gettime(CLOCK_REALTIME, &after);
+        clock_gettime(CLOCK_MONOTONIC, &after);
         sleep_time = SECONDS_PER_VIDEO - (after.tv_sec - before.tv_sec);
         if ((sleep_time > 0) && (sleep_time <= SECONDS_PER_VIDEO)) {
             while (sleep_time > 0) {
+                write_logfile("Sleeping");
                 sleep_time = sleep(sleep_time);
             }
         }
