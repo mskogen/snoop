@@ -122,7 +122,7 @@ int convert_to_video()
 
     // Capture image from http image server
     sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
-        -pattern_type glob -i '\\\"%s/*.jpg\\\"' -c:v libx264 '\\\"%s/%s\\\"'", 
+        -pattern_type glob -i \'%s/*.jpg\' -c:v libx264 %s/%s", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
 
     system(command);
