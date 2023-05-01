@@ -34,7 +34,7 @@
 // @15Hz intervals, create video once every minute
 #define CAPTURE_FREQ_HZ         (15)
 #define NUM_IMAGES_PER_VIDEO    (CAPTURE_FREQ_HZ*60)
-#define SECONDS_PER_VIDEO       (60)           
+#define SECONDS_PER_VIDEO       (10)           
 
 // Global variables
 bool exit_status = false;

@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "image_collection.h"
 #include "logging.h"
@@ -121,13 +123,51 @@ int convert_to_video()
     sprintf(file_name, "video_%i.mp4", g_num_videos++);
 
     // Capture image from http image server
-    sprintf(command, "/bin/bash -c \\\"ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
-        -pattern_type glob -i \\\"%s/*.jpg\\\" -c:v libx264 %s/%s\\\"", 
+    sprintf(command, "sh -c \"ffmpeg -hide_banner -loglevel panic -framerate %i -r %i \
+        -pattern_type glob -i \'%s/*.jpg\' -c:v libx264 %s/%s\"", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
 
-    system(command);
+    // system(command);
+    int wait_val = 0;
+    int ret_val = 0;
+    pid_t pid;
 
-    return g_num_videos;
+    /* Create a child process */
+    pid = fork();
+
+    if (pid == -1) {
+        /* Failed to create child process */
+        write_logfile("fork() failed: ");
+        return -1;
+    } else if (pid == 0) {
+        /* Inside child process */
+        ret_val = execl("/bin/bash", "-m", "-c", command, NULL);
+        
+        /* If process failed to execute return false for error */
+        if (ret_val == -1) {
+            write_logfile("execl() failed: ");
+        }
+        return -1;
+    }
+
+    /* Parent does cleanup of process, waits for child process to exit */
+    if (wait(&wait_val) == -1) {
+        write_logfile("wait() failed: ");
+        return -1;
+    }
+
+    /* 
+     * If we made it here the return val is a valid wait status. Check it to 
+     * make sure that the command exited properly and did not return a non-zero 
+     * value.
+     */
+    if (WIFEXITED(wait_val)) {
+        if (WEXITSTATUS(wait_val) == EXIT_SUCCESS) {
+            return g_num_videos;
+        }
+    }
+
+    return -1;
 }
 
 void destroy_mutex()
