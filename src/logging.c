@@ -1,3 +1,13 @@
+/**
+​*​ ​@file​: logging.c
+​*​ ​@brief​: Implementation file for Logging module
+*
+​* @description: The logging module provides an interface to create a file for
+*               application logging. Logs are timestamped for additional info.
+*
+​*​ ​@author:​ ​Matthew Skogen
+​*​ ​@date​: April 27 ​2023
+​*/
 #include <stdio.h>
 #include <string.h>
 #include <time.h>

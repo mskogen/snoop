@@ -1,3 +1,17 @@
+/**
+​*​ ​@file​: image_collection.c
+​*​ ​@brief​: Implementation file for Image Collection module
+*
+​* @description: The image collection module is used for interfacing with a
+*               camera sensor that is running an http server and images
+*               can be transfered via http requests. The intent of this module
+*               is to capture the images, and additional features will allow
+*               the user to convert the images to video streams if run on a 
+*               compatible system.
+*
+​*​ ​@author:​ ​Matthew Skogen
+​*​ ​@date​: April 27 ​2023
+​*/
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -18,6 +32,7 @@ static char g_file_path[MAX_PATH_SIZE];
 static char *g_base_dir = NULL;
 static int g_base_dir_len = 0;
 static int g_num_images = 0;
+static int g_num_folders = 0;
 static int g_num_videos = 0;
 static char *g_host = NULL;
 static char *g_port = NULL;
@@ -82,7 +97,6 @@ int capture_image()
     return g_num_images;
 }
 
-
 int convert_to_video()
 {
     // Convert .jpg to .mp4 via ffmpeg utility
@@ -123,11 +137,39 @@ int convert_to_video()
     sprintf(file_name, "video_%i.mp4", g_num_videos++);
 
     // Capture image from http image server
-    sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i -pattern_type glob -i \\\"%s/*.jpg\\\" -c:v libx264 %s/%s", 
+    sprintf(command, "ffmpeg -hide_banner -loglevel panic -framerate %i -r %i -pattern_type glob -i \'%s/*.jpg\' -c:v libx264 \'%s/%s\'", 
         g_frame_rate, g_frame_rate, tmp_file_path, tmp_file_path, file_name);
 
     system(command);
     return g_num_videos;
+}
+
+int new_folder()
+{
+    // Create a new timestamp for unique data folders, use UTC time
+    time_t timestamp;
+    struct tm *info;
+    char time_buffer[TIME_BUF_SIZE];
+    int time_buf_len = 0;
+
+    memset(time_buffer, 0, TIME_BUF_SIZE);
+    time(&timestamp);
+    info = gmtime(&timestamp);
+    strftime(time_buffer, TIME_BUF_SIZE-1, "%m%d%Y_%H%M%S", info);
+    time_buf_len = strlen(time_buffer);
+
+    // Create new folder for storing images
+    pthread_mutex_lock(&g_lock);
+
+    // Create new data directory for storing image/video data too
+    memcpy(&g_file_path[g_base_dir_len - time_buf_len], time_buffer, time_buf_len);
+    mkdir(g_file_path, S_IRWXU | S_IRWXG | S_IRWXO);
+
+    pthread_mutex_unlock(&g_lock);
+
+    g_num_folders++;
+
+    return g_num_folders;
 }
 
 void destroy_mutex()

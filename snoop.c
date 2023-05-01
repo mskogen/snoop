@@ -1,21 +1,11 @@
-/*****************************************************************************
-​*​ ​Copyright​ ​(C)​ ​2023 ​by​ Matthew Skogen
-​*
-​*​ ​Redistribution,​ ​modification​ ​or​ ​use​ ​of​ ​this​ ​software​ ​in​ ​source​ ​or​ ​binary
-​*​ ​forms​ ​is​ ​permitted​ ​as​ ​long​ ​as​ ​the​ ​files​ ​maintain​ ​this​ ​copyright.​ ​Users​ ​are
-​*​ ​permitted​ ​to​ ​modify​ ​this​ ​and​ ​use​ ​it​ ​to​ ​learn​ ​about​ ​the​ ​field​ ​of​ ​embedded
-​*​ ​software.​ ​Matthew Skogen ​and​ ​the​ ​University​ ​of​ ​Colorado​ ​are​ ​not​ ​liable​ ​for
-​*​ ​any​ ​misuse​ ​of​ ​this​ ​material.
-​*
-*****************************************************************************/
 /**
 ​*​ ​@file​ snoop.c
-​*​ ​@brief​ Application entry point
+​*​ ​@brief​ Snoop Application entry point
 ​*
 ​*​ ​@author​s ​Matthew Skogen
 ​*​ ​@date​ April 23 ​2023
 *
-* @description: Middleware application intended to recieve camera data from an
+* @description: Middleware application intended to receive camera data from an
 *               http server and log frame data to an external drive.
 ​*/
 #include <stdio.h>
@@ -31,10 +21,9 @@
 #include "logging.h"
 #include "image_collection.h"
 
-// @15Hz intervals, create video once every minute
+// @15Hz intervals, create slices once every minute
 #define CAPTURE_FREQ_HZ         (15)
-#define NUM_IMAGES_PER_VIDEO    (CAPTURE_FREQ_HZ*60)
-#define SECONDS_PER_VIDEO       (10)           
+#define SECONDS_PER_SLICE       (60)           
 
 // Global variables
 bool exit_status = false;
@@ -43,9 +32,8 @@ bool timer_active = false;
 bool mutex_active = false;
 timer_t timer;
 static int num_images = 0;
-static int num_videos = 0;
-// pthread_mutex_t thread_mutex;
-// bool mutex_active = false;
+// static int num_videos = 0;
+static int num_folders = 0;
 
 // Handles both SIGINT and SIGTERM signals
 static void signal_handler(int signum)
@@ -216,18 +204,24 @@ int main(int argc, char**argv)
         // once per minute.
         clock_gettime(CLOCK_MONOTONIC, &before);
 
-        // Convert minute's worth of images to video data and delete image data
+        // Slice image captures into minute long folders for easy separation
         if (first) {
             first = false;
         } else {
-            write_logfile("Processing video");
-            num_videos = convert_to_video();
-            write_logfile("Done processing video");
+            // // Convert images to video and start new folder
+            // write_logfile("Processing video");
+            // num_videos = convert_to_video();
+            // write_logfile("Done processing video");
+
+            // Create new folder
+            write_logfile("Creating new folder");
+            num_folders = new_folder();
+            write_logfile("Done creating new folder");
         }
         
         clock_gettime(CLOCK_MONOTONIC, &after);
-        sleep_time = SECONDS_PER_VIDEO - (after.tv_sec - before.tv_sec);
-        if ((sleep_time > 0) && (sleep_time <= SECONDS_PER_VIDEO)) {
+        sleep_time = SECONDS_PER_SLICE - (after.tv_sec - before.tv_sec);
+        if ((sleep_time > 0) && (sleep_time <= SECONDS_PER_SLICE)) {
             while (sleep_time > 0) {
                 write_logfile("Sleeping");
                 sleep_time = sleep(sleep_time);
@@ -240,7 +234,8 @@ int main(int argc, char**argv)
 
     // Write status of captured data
     memset(write_str, 0, sizeof(write_str));
-    sprintf(write_str, "Saved %i images %i videos", num_images, num_videos);
+    // sprintf(write_str, "Saved %i images %i videos", num_images, num_videos);
+    sprintf(write_str, "Saved %i images to %i folders", num_images, num_folders);
     write_logfile(write_str);
 
     write_logfile("Closing Snoop");
